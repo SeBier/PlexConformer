@@ -103,8 +103,8 @@ def checkcrop( INPUT, crop="1920:800:0:140", color="red"):
 
     #ffplay -i <input> -vf drawbox=0:140:1920:800:red
     command = [ 'ffplay', '-i', INPUT, "-an", "-sn",
-        '-vf', "drawbox="+ box,
-        "-loglevel", "quiet"
+        '-vf', "drawbox="+ box +',scale=w=iw/2:h=ih/2',
+        "-loglevel", "quiet",
         ]
 
     pipe = subprocess.Popen(command, stdout = subprocess.PIPE, bufsize=10**8)
@@ -114,4 +114,4 @@ def checkcrop( INPUT, crop="1920:800:0:140", color="red"):
 # ffmpeg -i The_Hobbit_An_Unexpected_Journey_t05.mkv -ss 120 -t 120 -map 0:m:language:eng? -map 0:m:language:deu? -c:v "libx264" -preset fast -profile:v high -level 4.2 -crf 20 -tune film -c:a copy -c:s copy -threads 12 preview.mkv
 
 if __name__ == "__main__":
-#    getFiles()
+    getFiles()

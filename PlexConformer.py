@@ -1,16 +1,21 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 import sys
+import os
 import configparser
 from time import sleep
 from PyQt5 import QtCore, QtGui, QtWidgets
 import ctypes
 
 from mainwindow import Ui_MainWindow
+from media_encode import checkcrop
 
 version = '0.1'
 myappid = 'SeBier.PlexConformer.Subproduct.'+version # arbitrary string
 ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
+
+# set global variable for vertical header
+verHeader = []
 
 class Main(QtWidgets.QMainWindow):
     def __init__(self):
@@ -32,6 +37,15 @@ class Main(QtWidgets.QMainWindow):
         appIcon.addFile('gui/icons/512x512.png', QtCore.QSize(512,512))
         self.setWindowIcon(appIcon)
 
+        #setup the tableWidget under the naming tab
+        horHeaders = ['New Title', 'Special', 'Ratio', 'Deinterlace']
+        self.ui.tableWidget_naming.setHorizontalHeaderLabels(horHeaders)
+        self.ui.tableWidget_naming.setVerticalHeaderLabels( ['Unknown'])
+        self.ui.tableWidget_naming.resizeColumnsToContents()
+
+        # File Combobox with data
+        self.titleRefresh()
+
         # Naming
         self.ui.getOpen_blurayName.clicked.connect( self.namingBluray)
         self.ui.pushButton_showCrop.clicked.connect( self.showCrop)
@@ -50,20 +64,66 @@ class Main(QtWidgets.QMainWindow):
 
     # funtions for the naming tab
     def namingBluray(self):
-        self.locationbluray()
+        dirBluray = self.locationbluray()
+        if dirBluray == '':
+            return ''
+
+        filelist = filter(lambda f: f.split('.')[-1] == 'mkv', os.listdir(dirBluray))
+        filelist = sorted(filelist)
+
+        #Set Row Count Table
+        self.ui.tableWidget_naming.setRowCount( len(filelist))
+
+        #Add Header
+        global verHeader
+        verHeader = filelist
+        self.ui.tableWidget_naming.setVerticalHeaderLabels(verHeader)
+
+        data = {'title04.mkv':['Mad Max - Fury Road (2015)','','2.40', 'false'],
+                'title17.mkv':['Crash & Smash','behindthescenes','1.78', 'false'],
+                'title18.mkv':['Die Dreharbeiten','behindthescenes','1.78', 'false']}
+
+        for m, key in enumerate(sorted(data.keys())):
+            #horHeaders.append(key)
+            for n, item in enumerate(data[key]):
+                newitem = QtWidgets.QTableWidgetItem(item)
+                self.ui.tableWidget_naming.setItem(m, n, newitem)
+
+        self.ui.tableWidget_naming.setEnabled(True)
+        self.ui.tableWidget_naming.resizeColumnsToContents()
 
 
     def showCrop(self):
-        pass
+        indexes = self.ui.tableWidget_naming.selectionModel().selectedRows()
+        rows = set(index.row() for index in self.ui.tableWidget_naming.selectedIndexes())
+        row = list(rows)[0]
+
+        path = os.path.join(self.ui.lineEdit_blurayName.text() + '/' + verHeader[row])
+        print( path)
+        checkcrop( path)
 
     # funtions for the encoding tab
     def locationbluray(self):
         dirBluray = QtWidgets.QFileDialog.getExistingDirectory(self, 'Select BluRay-Rip Directory')
         self.ui.lineEdit_blurayName.setText(dirBluray)
         self.ui.lineEdit_blurayEnc.setText(dirBluray)
+        return dirBluray
 
     def titleRefresh(self):
-        pass
+        cwd = os.getcwd()
+        moviePath = cwd + '\movie_titles'
+
+        titleList = filter(lambda f: f.split('.')[-1] == 'pcf', os.listdir(moviePath))
+        titleList = sorted(titleList)
+
+        newtitleList = []
+
+        for f in titleList:
+            newtitleList.append(f[:-4])
+
+        # clear Combobox before adding files
+        self.ui.comboBox_mTitle.clear()
+        self.ui.comboBox_mTitle.addItems( newtitleList)
 
     def startEncoding(self):
         self.ui.label_encoding.setText("Encoding: test")
@@ -114,7 +174,7 @@ class Main(QtWidgets.QMainWindow):
             self.ui.lineEdit_vlc.setText(config['LOCATIONS']['vlc'])
 
     def writeConfig(self):
-        pass
+        pass    
 
 
 if __name__ == '__main__':
