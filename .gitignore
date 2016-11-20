@@ -220,3 +220,4 @@ pngcrush.exe
 remove rgb-Profile.bat
 test_*
 *.pcf
+default.cfg
