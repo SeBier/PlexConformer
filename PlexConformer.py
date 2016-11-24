@@ -174,7 +174,28 @@ class Main(QtWidgets.QMainWindow):
             self.ui.lineEdit_vlc.setText(config['LOCATIONS']['vlc'])
 
     def writeConfig(self):
-        pass    
+        config = configparser.ConfigParser()
+        config['LOCATIONS'] = {'ffmpeg': self.ui.lineEdit_ffmpeg.text(),
+                                'plexmovie': self.ui.lineEdit_plexMovie.text(),
+                                'plexseries': self.ui.lineEdit_plexSeries.text(),
+                                'vlc': self.ui.lineEdit_vlc.text()}
+
+
+        with open('example.ini', 'w') as configfile:
+            config.write(configfile)
+
+
+def writeDefaultConfig():
+    config = configparser.ConfigParser()
+    config['ENCODING'] = {'DEINTERLACE': 'bwdif',
+                            'CODEC': 'libx264',
+                            'PRESET': 'superfast',
+                            'TUNE': 'film',
+                            'PROFILE': 'high',
+                            'LEVEL': '4.2',
+                            'CRF_VALUE': '20',
+                            'FORMAT': 'mkv'
+                            'allowedRatios' : '1.33, 1.55, 1.78, 1.85, 2.35, 2.39, 2.40}
 
 
 if __name__ == '__main__':
