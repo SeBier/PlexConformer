@@ -60,7 +60,7 @@ class Main(QtWidgets.QMainWindow):
         self.ui.getOpen_plexMovie.clicked.connect( self.locationPlexMovie)
         self.ui.getOpen_plexSeries.clicked.connect( self.locationPlexSeries)
         self.ui.getOpen_vlc.clicked.connect( self.locationVlc)
-        self.ui.pushButton_saveOptions.clicked.connect( self.saveOptions)
+        self.ui.pushButton_saveOptions.clicked.connect( self.writeConfig)
 
     # funtions for the naming tab
     def namingBluray(self):
@@ -121,7 +121,7 @@ class Main(QtWidgets.QMainWindow):
         for f in titleList:
             newtitleList.append(f[:-4])
 
-        # clear Combobox before adding files
+        # clear Combobox before adding titles
         self.ui.comboBox_mTitle.clear()
         self.ui.comboBox_mTitle.addItems( newtitleList)
 
@@ -150,17 +150,9 @@ class Main(QtWidgets.QMainWindow):
         dirVlc = QtWidgets.QFileDialog.getOpenFileName(self, 'Select VLC.exe', 'c:\\',"VLC.exe (vlc.exe)")
         self.ui.lineEdit_vlc.setText(dirVlc[0])
 
-    def saveOptions(self):
-        dirFfmpeg = self.ui.lineEdit_ffmpeg.text()
-        dirPlex = self.ui.lineEdit_plex.text()
-        dirVlc = self.ui.lineEdit_vlc.text()
-        print(dirFfmpeg)
-        print(dirPlex)
-        print(dirVlc)
-
     def readConfig(self):
         config = configparser.ConfigParser()
-        config.read('default.cfg')
+        config.read('user.cfg')
         if 'NAMING' in config:
             pass
 
@@ -175,30 +167,35 @@ class Main(QtWidgets.QMainWindow):
 
     def writeConfig(self):
         config = configparser.ConfigParser()
+        config.read('user.cfg')
         config['LOCATIONS'] = {'ffmpeg': self.ui.lineEdit_ffmpeg.text(),
                                 'plexmovie': self.ui.lineEdit_plexMovie.text(),
                                 'plexseries': self.ui.lineEdit_plexSeries.text(),
                                 'vlc': self.ui.lineEdit_vlc.text()}
 
 
-        with open('example.ini', 'w') as configfile:
+        with open('user.cfg', 'w') as configfile:
             config.write(configfile)
 
 
-def writeDefaultConfig():
-    config = configparser.ConfigParser()
-    config['ENCODING'] = {'DEINTERLACE': 'bwdif',
-                            'CODEC': 'libx264',
-                            'PRESET': 'superfast',
-                            'TUNE': 'film',
-                            'PROFILE': 'high',
-                            'LEVEL': '4.2',
-                            'CRF_VALUE': '20',
-                            'FORMAT': 'mkv'
-                            'allowedRatios' : '1.33, 1.55, 1.78, 1.85, 2.35, 2.39, 2.40}
+def DefaultConfig():
+    if os.path.exists('user.cfg') == False:
+        config = configparser.ConfigParser()
+        config['ENCODING'] = {'DEINTERLACE': 'bwdif',
+                                'CODEC': 'libx264',
+                                'PRESET': 'superfast',
+                                'TUNE': 'film',
+                                'PROFILE': 'high',
+                                'LEVEL': '4.2',
+                                'CRF_VALUE': '20',
+                                'FORMAT': 'mkv',
+                                'allowedRatios' : '1.33, 1.55, 1.78, 1.85, 2.35, 2.39, 2.40'}
+        with open('user.cfg', 'w') as configfile:
+            config.write(configfile)
 
 
 if __name__ == '__main__':
+    DefaultConfig()
     app = QtWidgets.QApplication(sys.argv)
     window = Main()
     window.show()
