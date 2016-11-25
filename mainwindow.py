@@ -60,7 +60,7 @@ class Ui_MainWindow(object):
         self.tableWidget_naming.setSelectionMode(QtWidgets.QAbstractItemView.SingleSelection)
         self.tableWidget_naming.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectRows)
         self.tableWidget_naming.setRowCount(1)
-        self.tableWidget_naming.setColumnCount(4)
+        self.tableWidget_naming.setColumnCount(1)
         self.tableWidget_naming.setObjectName("tableWidget_naming")
         self.tableWidget_naming.horizontalHeader().setDefaultSectionSize(75)
         self.tableWidget_naming.horizontalHeader().setStretchLastSection(True)

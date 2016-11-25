@@ -10,12 +10,18 @@ import ctypes
 from mainwindow import Ui_MainWindow
 from media_encode import checkcrop
 
+import media_rename
+import media_encode
+
 version = '0.1'
 myappid = 'SeBier.PlexConformer.Subproduct.'+version # arbitrary string
 ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
 
-# set global variable for vertical header
-verHeader = []
+# global variable for headers
+horHeaders = ['New Title', 'Special', 'Ratio', 'Deinterlace']
+verHeaders = []
+
+cuda = False
 
 class Main(QtWidgets.QMainWindow):
     def __init__(self):
@@ -38,9 +44,9 @@ class Main(QtWidgets.QMainWindow):
         self.setWindowIcon(appIcon)
 
         #setup the tableWidget under the naming tab
-        horHeaders = ['New Title', 'Special', 'Ratio', 'Deinterlace']
+        self.ui.tableWidget_naming.setColumnCount(len(horHeaders))
         self.ui.tableWidget_naming.setHorizontalHeaderLabels(horHeaders)
-        self.ui.tableWidget_naming.setVerticalHeaderLabels( ['Unknown'])
+        self.ui.tableWidget_naming.setVerticalHeaderLabels( ['None'])
         self.ui.tableWidget_naming.resizeColumnsToContents()
 
         # File Combobox with data
@@ -65,42 +71,78 @@ class Main(QtWidgets.QMainWindow):
     # funtions for the naming tab
     def namingBluray(self):
         dirBluray = self.locationbluray()
-        if dirBluray == '':
-            return ''
+
+        if os.path.exists( dirBluray) == False:
+            return ;
+        elif dirBluray == '':
+            return ;
 
         filelist = filter(lambda f: f.split('.')[-1] == 'mkv', os.listdir(dirBluray))
         filelist = sorted(filelist)
+
+        if filelist == []:
+            self.ui.tableWidget_naming.setRowCount( 1)
+            self.ui.tableWidget_naming.setVerticalHeaderLabels([ 'None'])
+            self.ui.tableWidget_naming.setEnabled(False)
+            return ;
+
 
         #Set Row Count Table
         self.ui.tableWidget_naming.setRowCount( len(filelist))
 
         #Add Header
-        global verHeader
-        verHeader = filelist
-        self.ui.tableWidget_naming.setVerticalHeaderLabels(verHeader)
+        global verHeaders
+        verHeaders = filelist
 
+        self.ui.tableWidget_naming.setVerticalHeaderLabels(verHeaders)
+        self.ui.tableWidget_naming.setEnabled(True)
+        self.ui.tableWidget_naming.resizeColumnsToContents()
+
+        for f in filelist:
+            path = os.path.join(dirBluray + '/' + f)
+            crop = media_encode.cropDetect( path, cuda)
+
+            try:
+                res = crop[1][2].split(' ')
+
+                #cropAdjusted = media_encode.correctAR( crop[0], res[0])
+
+                row = filelist.index( f)
+                collumn = horHeaders.index('Ratio')
+                #item = cropAdjusted
+                item = crop[0]
+
+                self.ui.tableWidget_naming.setItem( row, collumn, QtWidgets.QTableWidgetItem(item))
+            except:
+                print( 'Error: %s is not readable.' % f)
+
+
+
+        '''
         data = {'title04.mkv':['Mad Max - Fury Road (2015)','','2.40', 'false'],
                 'title17.mkv':['Crash & Smash','behindthescenes','1.78', 'false'],
                 'title18.mkv':['Die Dreharbeiten','behindthescenes','1.78', 'false']}
 
         for m, key in enumerate(sorted(data.keys())):
-            #horHeaders.append(key)
             for n, item in enumerate(data[key]):
                 newitem = QtWidgets.QTableWidgetItem(item)
                 self.ui.tableWidget_naming.setItem(m, n, newitem)
-
-        self.ui.tableWidget_naming.setEnabled(True)
-        self.ui.tableWidget_naming.resizeColumnsToContents()
+        '''
 
 
     def showCrop(self):
-        indexes = self.ui.tableWidget_naming.selectionModel().selectedRows()
-        rows = set(index.row() for index in self.ui.tableWidget_naming.selectedIndexes())
-        row = list(rows)[0]
+        #try:
+            indexes = self.ui.tableWidget_naming.selectionModel().selectedRows()
+            rows = set(index.row() for index in self.ui.tableWidget_naming.selectedIndexes())
+            row = list(rows)[0]
+            collumn = horHeaders.index('Ratio')
 
-        path = os.path.join(self.ui.lineEdit_blurayName.text() + '/' + verHeader[row])
-        print( path)
-        checkcrop( path)
+            crop = self.ui.tableWidget_naming.item( row, collumn).text()
+
+            path = os.path.join(self.ui.lineEdit_blurayName.text() + '/' + verHeaders[row])
+            checkcrop( path, crop)
+        #except:
+        #    print( 'Error')
 
     # funtions for the encoding tab
     def locationbluray(self):
@@ -153,6 +195,10 @@ class Main(QtWidgets.QMainWindow):
     def readConfig(self):
         config = configparser.ConfigParser()
         config.read('user.cfg')
+        if 'GENERAL' in config:
+            global cuda
+            cuda = config['GENERAL']['cuda']
+
         if 'NAMING' in config:
             pass
 
@@ -181,15 +227,16 @@ class Main(QtWidgets.QMainWindow):
 def DefaultConfig():
     if os.path.exists('user.cfg') == False:
         config = configparser.ConfigParser()
-        config['ENCODING'] = {'DEINTERLACE': 'bwdif',
-                                'CODEC': 'libx264',
-                                'PRESET': 'superfast',
-                                'TUNE': 'film',
-                                'PROFILE': 'high',
-                                'LEVEL': '4.2',
-                                'CRF_VALUE': '20',
-                                'FORMAT': 'mkv',
-                                'allowedRatios' : '1.33, 1.55, 1.78, 1.85, 2.35, 2.39, 2.40'}
+        config['GENERAL'] = {'cuda': 'false'}
+        config['ENCODING'] = {'deinterlace': 'bwdif',
+                                'codec': 'libx264',
+                                'preset': 'superfast',
+                                'tune': 'film',
+                                'profile': 'high',
+                                'level': '4.2',
+                                'crf_value': '20',
+                                'format': 'mkv',
+                                'allowedratios' : '1.33, 1.55, 1.78, 1.85, 2.35, 2.39, 2.40'}
         with open('user.cfg', 'w') as configfile:
             config.write(configfile)
 

@@ -15,7 +15,7 @@ LEVEL = '4.2'
 CRF_VALUE = '20'
 FORMAT = 'mkv'
 
-allowedRatios = [ "1,33", "1,55", "1,78", "1,85", "2,35", "2,39", "2,40"]
+allowedRatios = [ 1.33, 1.55, 1.78, 1.85, 2.35, 2.39, 2.40]
 TMP = r'H:\Temp\test.mkv'
 
 # -------------------------------------------------------------------------------
@@ -52,30 +52,59 @@ def encode(INPUT, OUTPUT):
 #    except:
 #        pass
 
-def cropDetect( file):
+def cropDetect( file, cuda = False):
     print("File to detect crop: %s " % file)
-    p = subprocess.Popen( ["ffmpeg", "-i", file, "-an", "-vf", "cropdetect=24:16:0", "-vframes", "500", "-y", TMP ],
+
+    if cuda == True:
+        CODEC = 'h264_nvenc'
+    else:
+        CODEC = 'h264'
+
+    p = subprocess.Popen( ["ffmpeg", '-an', '-sn', "-i", file, '-c:v', CODEC, "-vf", "cropdetect=24:16:0", "-vframes", "200", '-an', "-y", TMP ],
         stdout=subprocess.PIPE, stderr=subprocess.PIPE, bufsize=10 ** 8)
     infos = p.stderr.read()
-    print (infos)
+    infosStr = infos.decode('utf-8')
+    #print( infosStr)
+
+    findStream = infosStr.find('Stream #0:0')
+
+    content = infosStr[findStream:].split("\r\n")[0].split('Metadata')
+    content = content[0].split('Video: ')[1].split(', ')
+    videoData = ''
+
+#    print( videoDatast)
+
+
     allCrops = re.findall("crop=\S+", str(infos))
     mostCommonCrop = Counter(allCrops).most_common(1)
     if mostCommonCrop == []:
-        crop = ""
+        crop = ''
     else:
         mostCommonCropSolo = str(mostCommonCrop[0][0])
         mostCommonCropStr = mostCommonCropSolo.split(r"\r\n")
         crop = mostCommonCropStr[0]
 
-    #os.remove( 'autocrop.mkv')
-    return crop
+    if os.path.isfile( TMP):
+        os.remove( TMP) # Delete temp file
 
-def correctAR( crop, orgDimentions):
+    return crop, content
+
+
+def correctAR( crop, resolution):
     allowedRatios.sort()
-    orgRatio = 1.78
-    # crop=1920:1072:0:4
-    croplst = crop.split("=", 1)
-    w, h, x, y = croplst[1].split(":")
+
+    w_old, h_old = resolution.split('x')
+    w_old = int(w_old)
+    h_old = int(h_old)
+    w_new = w_old
+    h_new = h_old
+
+
+    orgRatio = w_old / h_old
+
+    cropmarks = crop.split("=", 1)
+    w, h, x, y = cropmarks[1].split(":")
+
     ratio = float(w)/float(h)
 
     i = 0
@@ -92,13 +121,24 @@ def correctAR( crop, orgDimentions):
         else:
             newRatio = allowedRatios[i]
 
-        if newRatio > orgRatio:
-            pass
-    print( round(ratio, 2), "-->", newRatio)
+        print('Adjusted:', round(ratio, 2), "-->", newRatio)
+
+        if newRatio > orgRatio: # Crop height
+            h_new = w_old / newRatio
+            h_new = round(h_new / 8) * 8
+        elif newRatio < orgRatio: # Crop width
+            w_new = h_old * newRatio
+            w_new = round(w_new / 8) * 8
+
+        x = w_old - w_new
+        y = h_old - h_new
+
+        return str('crop='+str(w)+':'+str(h)+':'+str(x)+':'+str(y))
 
 
-def checkcrop( INPUT, crop="1920:800:0:140", color="red"):
-    w, h, x, y =  crop.split(":")
+
+def checkcrop( INPUT, crop="crop=1920:800:0:140", color="red"):
+    w, h, x, y =  crop[5:].split(":")
     box = x + ":" + y + ":" + w + ":" + h + ":" + color +"@0.1:t=max"
 
     #ffplay -i <input> -vf drawbox=0:140:1920:800:red
